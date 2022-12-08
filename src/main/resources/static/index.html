@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Server-sent events demo</title>
+  <style>
+    * {
+      font: 14px D2Coding;
+    }
+
+    button,
+    input {
+      background-color: transparent;
+      border: 1px solid #eee;
+    }
+
+    button#closeBtn {
+      color: #aaa;
+    }
+
+    input.connected {
+      color: #ff00ff;
+    }
+  </style>
+</head>
+
+<body>
+  <div>
+    <input type="text" id="userid" value="001003200" placeholder="your userid" />
+    <button id="connectBtn">Connect</button>
+    <button id="closeBtn" style="display: none;">Close</button>
+  </div>
+
+  <ol reversed></ol>
+
+  <script type="text/javascript">
+    const inputBox = document.querySelector('input#userid');
+    const connectBtn = document.querySelector('button#connectBtn');
+    const closeBtn = document.querySelector('button#closeBtn');
+    const eventList = document.querySelector('ol');
+
+    let evtSource;
+
+    closeBtn.onclick = () => {
+      console.log('Connection closed');
+
+      evtSource.close();
+
+      connectBtn.style.display = '';
+      closeBtn.style.display = 'none';
+      inputBox.classList.remove('connected');
+    };
+
+    connectBtn.onclick = () => {
+      const userid = document.querySelector('#userid').value;
+      // https://developer.mozilla.org/ko/docs/Web/API/EventSource
+      evtSource = new EventSource('/sse/' + userid);
+
+      connectBtn.style.display = 'none';
+      closeBtn.style.display = '';
+
+      console.log('>> connecting');
+      console.log('>> withCredentials', evtSource.withCredentials);
+      console.log('>> readyState', evtSource.readyState); // CONNECTING (0), OPEN (1), or CLOSED (2).
+      console.log('>> url', evtSource.url);
+      console.log(evtSource);
+
+      evtSource.onopen = () => {
+        console.log('<< onopen: Connection to server opened.');
+
+        connectBtn.style.display = 'none';
+        closeBtn.style.display = '';
+        inputBox.classList.add('connected');
+      };
+
+      evtSource.onmessage = (e) => {
+        console.log('<< onmessage: e', e);
+        console.debug('e.event', e.event);
+        console.debug('e.data', e.data);
+        console.debug('e.id', e.id);
+        console.debug('e.retry', e.retry);
+
+        const newElement = document.createElement('li');
+        newElement.textContent = 'message: ' + e.data;
+        eventList.prepend(newElement);
+      };
+
+      evtSource.onerror = (e) => {
+        console.log('<< onerror: e', e);
+
+        connectBtn.style.display = '';
+        closeBtn.style.display = 'none';
+        inputBox.classList.remove('connected');
+      };
+
+      evtSource.addEventListener(
+        'notify',
+        (e) => {
+          console.log('<< Notify: e', e);
+          console.debug('type', e.type);
+          console.debug('lastEventId', e.lastEventId);
+          console.debug('timeStamp', e.timeStamp);
+          console.debug('data', JSON.parse(e.data));
+
+          const obj = JSON.parse(e.data);
+          const newElement = document.createElement('li');
+          newElement.innerHTML = `Notify: [${obj.subject}] at ${obj.receivedate}`;
+          eventList.prepend(newElement);
+        },
+        false
+      );
+
+      evtSource.addEventListener(
+        'ping',
+        (e) => {
+          console.log('<< ping: e', e);
+
+          const obj = JSON.parse(e.data);
+          const newElement = document.createElement('li');
+          newElement.innerHTML = 'ping at ' + obj.time;
+          eventList.prepend(newElement);
+        },
+        false
+      );
+    };
+  </script>
+</body>
+
+</html>
